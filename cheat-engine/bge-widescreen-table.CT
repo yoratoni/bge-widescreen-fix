@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="46">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>0</ID>
+      <Description>"aspect-ratio"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>"bge.exe"+16E595C</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>1</ID>
+      <Description>"render-width"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"bge.exe"+19597FC</Address>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Set Value</Action>
+          <Keys>
+            <Key>120</Key>
+          </Keys>
+          <Value>3440</Value>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"render-height"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"bge.exe"+1959800</Address>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Set Value</Action>
+          <Keys>
+            <Key>120</Key>
+          </Keys>
+          <Value>1440</Value>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>3</ID>
+      <Description>"window-width"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"bge.exe"+1959804</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>4</ID>
+      <Description>"window-height"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"bge.exe"+1959808</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>5</ID>
+      <Description>"size-changed"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Byte</VariableType>
+      <Address>"bge.exe"+21373C1</Address>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Set Value</Action>
+          <Keys>
+            <Key>122</Key>
+          </Keys>
+          <Value>1</Value>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>6</ID>
+      <Description>"[0] ws_ratio storage (enable before A/B/C, disable after)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Private values read by the hooks (the shared table at +16E595C stays 0.5625).
+// ws_k = ws_ratio / 0.5625, ws_invk = 0.5625 / ws_ratio. Update all three if you change the ratio.
+// Memory is intentionally never freed: disabling this while hooks are active used to crash.
+alloc(ws_ratio,32,"bge.exe")
+registersymbol(ws_ratio)
+label(ws_k)
+registersymbol(ws_k)
+label(ws_invk)
+registersymbol(ws_invk)
+label(ws_flag)
+registersymbol(ws_flag)
+ws_ratio:
+  dd (float)0.418604
+ws_k:
+  dd (float)0.744185
+ws_invk:
+  dd (float)1.34375
+ws_flag:
+  db 0
+[DISABLE]
+// nothing: keep the memory alive
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>116</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>7</ID>
+      <Description>"ws_ratio value (H/W)"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>ws_ratio</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>8</ID>
+      <Description>"[A] viewport fit  +AAB9CC"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+alloc(ws_vp,64,"bge.exe"+AAB9CC)
+label(ws_vp_orig)
+label(ws_vp_ret)
+ws_vp:
+  cmp rdx,3
+  jne ws_vp_orig
+  movss xmm6,[ws_ratio]
+  jmp ws_vp_ret
+ws_vp_orig:
+  movss xmm6,[rcx+rdx*4]
+  jmp ws_vp_ret
+"bge.exe"+AAB9CC:
+  jmp ws_vp
+ws_vp_ret:
+[DISABLE]
+"bge.exe"+AAB9CC:
+  db F3 0F 10 34 91
+dealloc(ws_vp)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>117</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>11</ID>
+      <Description>"[A2] viewport fit, world camera only (+ flags it for H)  +AAB9CC (exclusive with A/A3/A4)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Same site as A, but only overrides the ratio when the view being fitted
+// is the main display camera (DD+0x1D0). rbx = GDI_gpst_CurDD, r8 = view.
+alloc(ws_vp2,64,"bge.exe"+AAB9CC)
+label(ws_vp2_orig)
+label(ws_vp2_ret)
+ws_vp2:
+  mov byte ptr [ws_flag],0
+  cmp rdx,3
+  jne ws_vp2_orig
+  lea rax,[rbx+1D0]
+  cmp r8,rax
+  jne ws_vp2_orig
+  mov byte ptr [ws_flag],1
+  movss xmm6,[ws_ratio]
+  jmp ws_vp2_ret
+ws_vp2_orig:
+  movss xmm6,[rcx+rdx*4]
+  jmp ws_vp2_ret
+"bge.exe"+AAB9CC:
+  jmp ws_vp2
+ws_vp2_ret:
+[DISABLE]
+"bge.exe"+AAB9CC:
+  db F3 0F 10 34 91
+dealloc(ws_vp2)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>16</Key>
+            <Key>117</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>12</ID>
+      <Description>"[B+] main projection Hor+  +A2F2D6 (exclusive with B)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Keeps the stock 16:9 vertical factor, scales only FactorX (xmm1) by ws_k.
+alloc(ws_projh,64,"bge.exe"+A2F2D6)
+label(ws_projh_orig)
+label(ws_projh_ret)
+ws_projh:
+  cmp rax,3
+  jne ws_projh_orig
+  mulss xmm1,[ws_k]
+ws_projh_orig:
+  mulss xmm2,[rcx+rax*4]
+  jmp ws_projh_ret
+"bge.exe"+A2F2D6:
+  jmp ws_projh
+ws_projh_ret:
+[DISABLE]
+"bge.exe"+A2F2D6:
+  db F3 0F 59 14 81
+dealloc(ws_projh)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>16</Key>
+            <Key>118</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>13</ID>
+      <Description>"[C+] per-view camera Hor+ scale  +A1D2FA (use with C)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// At the FactorX/FactorY store: if hook C supplied ws_ratio (xmm8), scale both by ws_k.
+alloc(ws_camh,64,"bge.exe"+A1D2FA)
+label(ws_camh_orig)
+label(ws_camh_ret)
+ws_camh:
+  ucomiss xmm8,[ws_ratio]
+  jp ws_camh_orig
+  jne ws_camh_orig
+  mulss xmm6,[ws_k]
+  mulss xmm7,[ws_k]
+ws_camh_orig:
+  movss [rbx+14],xmm6
+  jmp ws_camh_ret
+"bge.exe"+A1D2FA:
+  jmp ws_camh
+ws_camh_ret:
+[DISABLE]
+"bge.exe"+A1D2FA:
+  db F3 0F 11 73 14
+dealloc(ws_camh)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>16</Key>
+            <Key>119</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>9</ID>
+      <Description>"[B] main projection  +A2F2D6"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+alloc(ws_proj,64,"bge.exe"+A2F2D6)
+label(ws_proj_orig)
+label(ws_proj_ret)
+ws_proj:
+  cmp rax,3
+  jne ws_proj_orig
+  mulss xmm2,[ws_ratio]
+  jmp ws_proj_ret
+ws_proj_orig:
+  mulss xmm2,[rcx+rax*4]
+  jmp ws_proj_ret
+"bge.exe"+A2F2D6:
+  jmp ws_proj
+ws_proj_ret:
+[DISABLE]
+"bge.exe"+A2F2D6:
+  db F3 0F 59 14 81
+dealloc(ws_proj)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>118</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>10</ID>
+      <Description>"[C] per-view camera  +A1D195"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+alloc(ws_cam,64,"bge.exe"+A1D195)
+label(ws_cam_orig)
+label(ws_cam_ret)
+ws_cam:
+  cmp rax,3
+  jne ws_cam_orig
+  movss xmm8,[ws_ratio]
+  jmp ws_cam_ret
+ws_cam_orig:
+  movss xmm8,[rcx+rax*4]
+  jmp ws_cam_ret
+"bge.exe"+A1D195:
+  jmp ws_cam
+  nop
+ws_cam_ret:
+[DISABLE]
+"bge.exe"+A1D195:
+  db F3 44 0F 10 04 81
+dealloc(ws_cam)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>119</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>14</ID>
+      <Description>"GDI_CurDD (display struct ptr)"</Description>
+      <ShowAsHex>1</ShowAsHex>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>8 Bytes</VariableType>
+      <Address>"bge.exe"+19AFE18</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>15</ID>
+      <Description>"screen-format flags (DD+1B0), bit0 = fit inside"</Description>
+      <ShowAsHex>1</ShowAsHex>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"bge.exe"+19AFE18</Address>
+      <Offsets>
+        <Offset>1B0</Offset>
+      </Offsets>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Set Value</Action>
+          <Keys>
+            <Key>16</Key>
+            <Key>120</Key>
+          </Keys>
+          <Value>9</Value>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>16</ID>
+      <Description>"[A3] viewport fit, all views EXCEPT DD camera  +AAB9CC (exclusive with A/A2)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Opposite of A2: override the ratio for every fitted view except DD+0x1D0
+// (i.e. only the stack-built cameras). rbx = GDI_gpst_CurDD, r8 = view.
+alloc(ws_vp3,64,"bge.exe"+AAB9CC)
+label(ws_vp3_orig)
+label(ws_vp3_ret)
+ws_vp3:
+  cmp rdx,3
+  jne ws_vp3_orig
+  lea rax,[rbx+1D0]
+  cmp r8,rax
+  je ws_vp3_orig
+  movss xmm6,[ws_ratio]
+  jmp ws_vp3_ret
+ws_vp3_orig:
+  movss xmm6,[rcx+rdx*4]
+  jmp ws_vp3_ret
+"bge.exe"+AAB9CC:
+  jmp ws_vp3
+ws_vp3_ret:
+[DISABLE]
+"bge.exe"+AAB9CC:
+  db F3 0F 10 34 91
+dealloc(ws_vp3)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>17</Key>
+            <Key>117</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>17</ID>
+      <Description>"[A4] viewport fit, all views + flag world camera  +AAB9CC (exclusive with A/A2/A3)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Like A (every view gets ws_ratio), and sets ws_flag when the view is the
+// world camera (DD+0x1D0) so hook H applies Hor+ to that one projection only.
+alloc(ws_vp4,96,"bge.exe"+AAB9CC)
+label(ws_vp4_orig)
+label(ws_vp4_ret)
+ws_vp4:
+  mov byte ptr [ws_flag],0
+  cmp rdx,3
+  jne ws_vp4_orig
+  lea rax,[rbx+1D0]
+  cmp r8,rax
+  jne short @f
+  mov byte ptr [ws_flag],1
+@@:
+  movss xmm6,[ws_ratio]
+  jmp ws_vp4_ret
+ws_vp4_orig:
+  movss xmm6,[rcx+rdx*4]
+  jmp ws_vp4_ret
+"bge.exe"+AAB9CC:
+  jmp ws_vp4
+ws_vp4_ret:
+[DISABLE]
+"bge.exe"+AAB9CC:
+  db F3 0F 10 34 91
+dealloc(ws_vp4)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>17</Key>
+            <Key>16</Key>
+            <Key>117</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>18</ID>
+      <Description>"[H] Hor+ for world camera, in matrix builder  +A98009 (needs A2 or A4)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Right after t = tan(FOV/2): if A4 flagged the world camera, t *= 0.5625/ws_ratio
+// -> vertical scale identical to 16:9, horizontal widened (Hor+).
+alloc(ws_hp,64,"bge.exe"+A98009)
+label(ws_hp_orig)
+label(ws_hp_ret)
+ws_hp:
+  cmp byte ptr [ws_flag],1
+  jne ws_hp_orig
+  mov byte ptr [ws_flag],0
+  mulss xmm0,[ws_invk]
+ws_hp_orig:
+  cmp byte ptr [rsp+80],0
+  jmp ws_hp_ret
+"bge.exe"+A98009:
+  jmp ws_hp
+  nop 3
+ws_hp_ret:
+[DISABLE]
+"bge.exe"+A98009:
+  db 80 BC 24 80 00 00 00 00
+dealloc(ws_hp)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>17</Key>
+            <Key>118</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>19</ID>
+      <Description>"[LOG] viewport offsets per view  +AABB2C"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Logs the fitted viewport offset of each view passing through the fit function.
+// Slot 0 = world camera (DD+0x1D0), slot 1/2 = the two stack cameras (split on bit 4 of r8).
+// Each slot: +0 x offset, +4 y offset, +8 fitted height (ints).
+alloc(ws_log,128,"bge.exe"+AABB2C)
+alloc(ws_logdata,64,"bge.exe")
+registersymbol(ws_logdata)
+label(ws_log_slot)
+label(ws_log_ret)
+ws_log:
+  mov [r8+40],eax
+  lea rax,[ws_logdata]
+  push rcx
+  lea rcx,[rbx+1D0]
+  cmp r8,rcx
+  je short ws_log_slot
+  add rax,10
+  test r8,10
+  je short ws_log_slot
+  add rax,10
+ws_log_slot:
+  mov ecx,[r8+3C]
+  mov [rax],ecx
+  mov ecx,[r8+40]
+  mov [rax+4],ecx
+  mov [rax+8],r10d
+  pop rcx
+  mov rax,[bge.exe+209FD90]
+  jmp ws_log_ret
+"bge.exe"+AABB2C:
+  jmp ws_log
+  nop 6
+ws_log_ret:
+[DISABLE]
+"bge.exe"+AABB2C:
+  db 41 89 40 40 48 8B 05 59 42 5F 01
+dealloc(ws_log)
+// ws_logdata intentionally kept so the value entries stay readable
+</AssemblerScript>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>20</ID>
+      <Description>"log world: x offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+0</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>21</ID>
+      <Description>"log world: y offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+4</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>22</ID>
+      <Description>"log world: fitted height"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+8</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>23</ID>
+      <Description>"log stack A: x offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+10</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>24</ID>
+      <Description>"log stack A: y offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+14</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>25</ID>
+      <Description>"log stack A: fitted height"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+18</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>26</ID>
+      <Description>"log stack B: x offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+20</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>27</ID>
+      <Description>"log stack B: y offset"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+24</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>28</ID>
+      <Description>"log stack B: fitted height"</Description>
+      <ShowAsSigned>1</ShowAsSigned>
+      <VariableType>4 Bytes</VariableType>
+      <Address>ws_logdata+28</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>29</ID>
+      <Description>"virtual width (DD+1F4)"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>"bge.exe"+19AFE18</Address>
+      <Offsets>
+        <Offset>1F4</Offset>
+      </Offsets>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>30</ID>
+      <Description>"virtual height (DD+1F8)"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>"bge.exe"+19AFE18</Address>
+      <Offsets>
+        <Offset>1F8</Offset>
+      </Offsets>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>31</ID>
+      <Description>"[B2] text projection: B + FactorX*ws_invk  +A2F2D6 (exclusive with B/B+)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Empirical: text width ~ 1/FactorX, text height ~ FactorY/FactorX.
+// Want width *0.744, height unchanged -> FactorX *1.344 and FactorY *1.344 (= B).
+alloc(ws_proj2,64,"bge.exe"+A2F2D6)
+label(ws_proj2_orig)
+label(ws_proj2_ret)
+ws_proj2:
+  cmp rax,3
+  jne ws_proj2_orig
+  mulss xmm1,[ws_invk]
+  mulss xmm2,[ws_ratio]
+  jmp ws_proj2_ret
+ws_proj2_orig:
+  mulss xmm2,[rcx+rax*4]
+  jmp ws_proj2_ret
+"bge.exe"+A2F2D6:
+  jmp ws_proj2
+ws_proj2_ret:
+[DISABLE]
+"bge.exe"+A2F2D6:
+  db F3 0F 59 14 81
+dealloc(ws_proj2)
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>17</Key>
+            <Key>16</Key>
+            <Key>118</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>32</ID>
+      <Description>"[T] text origin offset  +A2F7A3"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Text renderer: string origin in pixels is computed into xmm0 (x) / xmm2 (y)
+// right before being stored as int16 globals. Add live-tunable offsets.
+alloc(ws_txt,64,"bge.exe"+A2F7A3)
+alloc(ws_txtoff,16,"bge.exe")
+registersymbol(ws_txtoff)
+label(ws_txt_ret)
+// tuned for 3440x1440: x = (W - 16/9*H)/2 = 440, y = H/2*(1 - (16/9*H)/W) = 184
+ws_txtoff:
+  dd (float)440
+  dd (float)184
+ws_txt:
+  addss xmm0,[ws_txtoff]
+  addss xmm2,[ws_txtoff+4]
+  cvttss2si eax,xmm0
+  mov [bge.exe+19B0020],ax
+  jmp ws_txt_ret
+"bge.exe"+A2F7A3:
+  jmp ws_txt
+  nop 6
+ws_txt_ret:
+[DISABLE]
+"bge.exe"+A2F7A3:
+  db F3 0F 2C C0 66 89 05 72 08 F8 00
+dealloc(ws_txt)
+// ws_txtoff kept so the offset entries stay valid
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>17</Key>
+            <Key>119</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>33</ID>
+      <Description>"text offset X"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>ws_txtoff</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>34</ID>
+      <Description>"text offset Y"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>ws_txtoff+4</Address>
+    </CheatEntry>
+  </CheatEntries>
+  <CheatCodes>
+    <CodeEntry>
+      <Description>Code :movss xmm6,[rcx+rdx*4]</Description>
+      <AddressString>bge.exe+AAB9CC</AddressString>
+      <Before>
+        <Byte>0D</Byte>
+        <Byte>84</Byte>
+        <Byte>9F</Byte>
+        <Byte>C3</Byte>
+        <Byte>00</Byte>
+      </Before>
+      <Actual>
+        <Byte>F3</Byte>
+        <Byte>0F</Byte>
+        <Byte>10</Byte>
+        <Byte>34</Byte>
+        <Byte>91</Byte>
+      </Actual>
+      <After>
+        <Byte>EB</Byte>
+        <Byte>08</Byte>
+        <Byte>F3</Byte>
+        <Byte>0F</Byte>
+        <Byte>10</Byte>
+      </After>
+    </CodeEntry>
+    <CodeEntry>
+      <Description>Code :mulss xmm2,[rcx+rax*4]</Description>
+      <AddressString>bge.exe+A2F2D6</AddressString>
+      <Before>
+        <Byte>C6</Byte>
+        <Byte>F3</Byte>
+        <Byte>0F</Byte>
+        <Byte>5E</Byte>
+        <Byte>CA</Byte>
+      </Before>
+      <Actual>
+        <Byte>F3</Byte>
+        <Byte>0F</Byte>
+        <Byte>59</Byte>
+        <Byte>14</Byte>
+        <Byte>81</Byte>
+      </Actual>
+      <After>
+        <Byte>F3</Byte>
+        <Byte>0F</Byte>
+        <Byte>11</Byte>
+        <Byte>8B</Byte>
+        <Byte>E4</Byte>
+      </After>
+    </CodeEntry>
+    <CodeEntry>
+      <Description>Code :movss xmm8,[rcx+rax*4]</Description>
+      <AddressString>bge.exe+A1D195</AddressString>
+      <Before>
+        <Byte>0D</Byte>
+        <Byte>BB</Byte>
+        <Byte>87</Byte>
+        <Byte>CC</Byte>
+        <Byte>00</Byte>
+      </Before>
+      <Actual>
+        <Byte>F3</Byte>
+        <Byte>44</Byte>
+        <Byte>0F</Byte>
+        <Byte>10</Byte>
+        <Byte>04</Byte>
+        <Byte>81</Byte>
+      </Actual>
+      <After>
+        <Byte>EB</Byte>
+        <Byte>06</Byte>
+        <Byte>F3</Byte>
+        <Byte>45</Byte>
+        <Byte>0F</Byte>
+      </After>
+    </CodeEntry>
+  </CheatCodes>
+  <UserdefinedSymbols/>
+</CheatTable>

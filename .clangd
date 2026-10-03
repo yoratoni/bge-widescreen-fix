@@ -1,0 +1,13 @@
+# clangd configuration.
+#
+# Requires clangd >= 20. This project builds with `-std=c++23` (needs Clang 17+) and the MSVC
+# STL shipped with VS 2022 17.1x hard-asserts on any Clang older than 20 ("error STL1000").
+
+CompileFlags:
+  # Relative to this file, so it resolves wherever the repository is checked out
+  CompilationDatabase: build
+
+  Add:
+    # Indexer-only escape hatch for the STL1000 assert described above, this never reaches
+    # the real build (which compiles through the commands in the database)
+    - -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH

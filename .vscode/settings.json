@@ -1,0 +1,23 @@
+{
+    "git.autoRepositoryDetection": false,
+    // C++ IntelliSense is served by clangd only, cpptools stays installed for its debugger
+    // but its own engine is off
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--background-index",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--header-insertion=never",
+        "--pch-storage=memory"
+    ],
+    // Warn when the resolved clangd is older than the extension expects, this project needs
+    // clangd >= 20 and a stale binary fails loudly inside the MSVC STL rather than degrading
+    "clangd.checkUpdates": true,
+    "clangd.onConfigChanged": "restart",
+    "cSpell.words": [
+        "Denuvo's",
+        "letterboxed",
+        "lfanew",
+        "safetyhook"
+    ]
+}
