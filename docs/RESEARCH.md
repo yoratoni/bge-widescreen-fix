@@ -183,16 +183,25 @@ A4 (ratio for every view + flag the world camera), H (Hor+ for the world camera)
 
 The startup clamp (`+98DF97`) is **not** patched yet, v1 reproduces the CE recipe exactly (16:9 virtual screen).
 
+**First in-game run (v0.1.0, 2026-10-03)**: every signature found at the expected address, all hooks installed,
+the log reported `Render size 1920x1080 -> 3440x1440`. The game started at **1920x1080** (not the 2560x1440 of the
+player ini), so the virtual screen was 1920x1080, and the text was still aligned: the text offset formula holds for a
+virtual screen of a different height than the output, as long as it is 16:9. 3D view, Hor+, portraits, main menu,
+pause menu and gameplay text all correct.
+
 ## Open issues
-- **Loading screens** stay 1920x1080 in the bottom-left corner of the 3440x1440 output (the game is visible behind).
-  They run on their own thread (`"Loading Screen Thread"` string) and most likely size themselves from a value
-  captured at startup (the in-game resolution was 1920x1080 at the time). Patching the startup clamp would likely fix
-  it, but it also changes the virtual screen and therefore the text offsets.
+- **Loading / black screens** are drawn 16:9 in the bottom-left corner of the 3440x1440 output (the game is visible
+  behind). They match the **startup** render size (1920x1080 in the first in-game run), they run on their own thread
+  (`"Loading Screen Thread"` string) and most likely keep the size captured at startup. Patching the startup clamp
+  would likely fix it, but it also changes the virtual screen and therefore the text offsets.
+- **Map menu**: a hover effect is drawn over the side bars, i.e. outside the 16:9 area the rest of the menu uses.
 - **Pause menu side bars** with Hor+: accepted, the menu art is a 16:9 asset.
 - **Cutscenes**: not tested, Bink movies are pre-rendered 16:9 (pillarboxing expected and fine), in-engine cutscenes unknown.
 - **Supported setups**: only outputs wider than 16:9 are touched, 16:10 and narrower keep the stock behaviour.
-  The text offsets assume the virtual screen has the output's height (game started at a 16:9 resolution
-  of the same height, e.g. 2560x1440 for a 3440x1440 screen), other combinations are untested.
+  The text offsets were validated with 16:9 virtual screens (2560x1440 in Cheat Engine, 1920x1080 in game),
+  a game started at a non-16:9 resolution is untested.
+- **Where the startup 1920x1080 comes from**: not identified yet, the player ini says 2560x1440, the most likely
+  source is the in-game resolution option (applied through the monitor mode list writer at `+98D3EF`).
 - **Game updates**: every signature must match exactly once, otherwise the mod patches nothing and logs which one failed.
 
 ## Method and tooling
