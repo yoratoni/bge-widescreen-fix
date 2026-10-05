@@ -11,9 +11,10 @@
 constexpr std::string_view FIX_NAME = "BGEWidescreenFix";
 
 /**
- * @brief The version of the fix, written at the top of the log.
+ * @brief The version of the fix, written at the top of the log, defined once in `CMakeLists.txt`
+ * (`project(... VERSION ...)`) and passed as the `FIX_VERSION_STRING` compile definition.
  */
-constexpr std::string_view FIX_VERSION = "0.1.0";
+constexpr std::string_view FIX_VERSION = FIX_VERSION_STRING;
 
 /**
  * @brief The name of the game executable, the fix stays inactive inside any other process.

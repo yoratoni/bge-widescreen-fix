@@ -1,0 +1,106 @@
+name: Release
+
+# Builds the ASI in Release, runs the tests and packages a ready-to-extract ZIP
+# (ASI, configuration, Ultimate ASI Loader as dinput8.dll and the licenses).
+# A pushed "v*" tag also publishes the ZIP as a GitHub release, a manual run only uploads it as an artifact.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Ultimate ASI Loader, bundled as dinput8.dll (MIT), pinned and checksum verified
+  UAL_VERSION: v9.7.4
+  UAL_SHA256: e5860e7d9a1805267535b65749575b5e406cc6ea3325c7392189c578815045d1
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The MSVC STL shipped with recent Visual Studio versions requires Clang >= 20
+      - name: Install LLVM
+        run: choco upgrade llvm --no-progress -y
+
+      # MSVC STL, Windows SDK and Ninja for Clang targeting the MSVC ABI
+      - name: Set up the MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # The version is defined once, in the "project()" call of CMakeLists.txt
+      - name: Read the version
+        id: version
+        shell: pwsh
+        run: |
+          $match = Select-String -Path CMakeLists.txt -Pattern 'project\(BGEWidescreenFix VERSION ([0-9.]+)'
+          if (-not $match) {
+              throw "Couldn't read the version from CMakeLists.txt"
+          }
+          $version = $match.Matches[0].Groups[1].Value
+          "value=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Check the tag matches the version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tagVersion = "${{ github.ref_name }}".TrimStart("v")
+          if ($tagVersion -ne "${{ steps.version.outputs.value }}") {
+              throw "Tag ${{ github.ref_name }} doesn't match the CMakeLists.txt version ${{ steps.version.outputs.value }}"
+          }
+
+      # The compiler path is passed explicitly so the freshly installed LLVM is used,
+      # not an older Clang that may come first in PATH
+      - name: Configure
+        shell: pwsh
+        run: |
+          $env:VCPKG_ROOT = $env:VCPKG_INSTALLATION_ROOT
+          & "C:\Program Files\LLVM\bin\clang++.exe" --version
+          cmake --preset release -DCMAKE_CXX_COMPILER="C:/Program Files/LLVM/bin/clang++.exe"
+
+      - name: Build
+        run: cmake --build --preset release
+
+      - name: Test
+        run: ctest --test-dir build-release --output-on-failure
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $zipName = "BGEWidescreenFix-${{ steps.version.outputs.value }}.zip"
+          New-Item -ItemType Directory -Force dist, ual | Out-Null
+
+          Invoke-WebRequest -Uri "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/$env:UAL_VERSION/Ultimate-ASI-Loader-NoPDB_x64.zip" -OutFile ual/ual.zip
+          $hash = (Get-FileHash ual/ual.zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:UAL_SHA256) {
+              throw "Ultimate ASI Loader checksum mismatch: $hash"
+          }
+          Expand-Archive ual/ual.zip -DestinationPath ual
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/$env:UAL_VERSION/license" -OutFile dist/LICENSE-UltimateASILoader.txt
+
+          Copy-Item build-release/BGEWidescreenFix.asi, build-release/BGEWidescreenFix.ini, ual/dinput8.dll dist/
+          Copy-Item LICENSE dist/LICENSE-BGEWidescreenFix.txt
+
+          Compress-Archive -Path dist/* -DestinationPath $zipName
+          "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload the artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BGEWidescreenFix-${{ steps.version.outputs.value }}
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true

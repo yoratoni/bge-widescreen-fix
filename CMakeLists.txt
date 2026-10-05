@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
+# The only place the version is defined, passed to the code as "FIX_VERSION_STRING" (see "FIX_VERSION"
+# in "src/core/constants.hpp") and checked against the tag by the release workflow
 project(BGEWidescreenFix VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -44,8 +46,13 @@ endif()
 # Include directories
 target_include_directories(BGEWidescreenFixLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# Trimmed Windows headers, without the "min"/"max" macros that break "std::min"/"std::max"
-target_compile_definitions(BGEWidescreenFixLib PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
+# Trimmed Windows headers, without the "min"/"max" macros that break "std::min"/"std::max",
+# and the project version for "FIX_VERSION"
+target_compile_definitions(BGEWidescreenFixLib PUBLIC
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+    FIX_VERSION_STRING="${PROJECT_VERSION}"
+)
 
 # Link libraries (FetchContent targets from "cmake/dependencies.cmake")
 target_link_libraries(BGEWidescreenFixLib PUBLIC safetyhook::safetyhook)

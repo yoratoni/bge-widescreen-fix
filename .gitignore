@@ -54,3 +54,4 @@ backups/
 
 # Builds
 build/
+build-release/

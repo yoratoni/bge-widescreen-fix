@@ -15,12 +15,18 @@
     "clangd.checkUpdates": true,
     "clangd.onConfigChanged": "restart",
     "cSpell.words": [
+        "choco",
+        "DCMAKE",
         "Denuvo's",
+        "dinput",
         "fnpst",
+        "ilammy",
         "letterboxed",
         "lfanew",
         "mulss",
+        "pwsh",
         "safetyhook",
+        "softprops",
         "tdst"
     ]
 }
