@@ -16,8 +16,11 @@
     "clangd.onConfigChanged": "restart",
     "cSpell.words": [
         "Denuvo's",
+        "fnpst",
         "letterboxed",
         "lfanew",
-        "safetyhook"
+        "mulss",
+        "safetyhook",
+        "tdst"
     ]
 }
