@@ -33,9 +33,9 @@ struct FixConfig {
     bool forceRenderSize; // Keeps the render target at the window size instead of the game's 16:9 fit
     bool fitInside; // Makes every view fit inside the screen instead of overflowing it
     bool horPlus; // Keeps the 16:9 vertical FOV and widens the horizontal one
-    bool textFix; // Corrects the size and position of the text layer
-    float textOffsetX; // Text layer origin offset override in pixels (0 = computed)
-    float textOffsetY; // Text layer origin offset override in pixels (0 = computed)
+    bool textFix; // Corrects the size of the text layer
+    bool centerFittedOffsets; // Centers the 16:9 area every 2D layer (sprites and text) is drawn in
+    bool logFittedViews; // Debug: logs every distinct view going through the viewport fit
 };
 
 /**

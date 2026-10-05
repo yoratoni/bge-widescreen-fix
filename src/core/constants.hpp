@@ -41,9 +41,9 @@ constexpr const wchar_t* CONFIG_SECTION_GENERAL = L"General";
 constexpr const wchar_t* CONFIG_SECTION_FIXES = L"Fixes";
 
 /**
- * @brief The INI section holding the manual overrides of computed values.
+ * @brief The INI section holding the diagnostic toggles, all disabled by default.
  */
-constexpr const wchar_t* CONFIG_SECTION_OVERRIDES = L"Overrides";
+constexpr const wchar_t* CONFIG_SECTION_DEBUG = L"Debug";
 
 /**
  * @brief The INI key of `FixConfig::isEnabled` (section `General`).
@@ -71,14 +71,14 @@ constexpr const wchar_t* CONFIG_KEY_HOR_PLUS = L"HorPlus";
 constexpr const wchar_t* CONFIG_KEY_TEXT_FIX = L"TextFix";
 
 /**
- * @brief The INI key of `FixConfig::textOffsetX` (section `Overrides`).
+ * @brief The INI key of `FixConfig::centerFittedOffsets` (section `Fixes`).
  */
-constexpr const wchar_t* CONFIG_KEY_TEXT_OFFSET_X = L"TextOffsetX";
+constexpr const wchar_t* CONFIG_KEY_CENTER_FITTED_OFFSETS = L"CenterFittedOffsets";
 
 /**
- * @brief The INI key of `FixConfig::textOffsetY` (section `Overrides`).
+ * @brief The INI key of `FixConfig::logFittedViews` (section `Debug`).
  */
-constexpr const wchar_t* CONFIG_KEY_TEXT_OFFSET_Y = L"TextOffsetY";
+constexpr const wchar_t* CONFIG_KEY_LOG_FITTED_VIEWS = L"LogFittedViews";
 
 /**
  * @brief The configuration used for every key missing from the INI file (or when there's no INI file at all).
@@ -89,8 +89,8 @@ constexpr FixConfig DEFAULT_FIX_CONFIG {
     .fitInside = true,
     .horPlus = true,
     .textFix = true,
-    .textOffsetX = 0.0f,
-    .textOffsetY = 0.0f,
+    .centerFittedOffsets = true,
+    .logFittedViews = false,
 };
 
 /**
@@ -109,6 +109,39 @@ constexpr uintptr_t STOCK_RATIO_INDEX = 3;
  * the viewport fit function receives it when fitting the 3D world view.
  */
 constexpr uintptr_t WORLD_CAMERA_OFFSET = 0x1D0;
+
+/**
+ * @brief The offset of the size of a display data structure (two `int32_t`, width then height),
+ * the size every camera of that structure is fitted into (the "virtual screen").
+ */
+constexpr uintptr_t DISPLAY_DATA_SIZE_OFFSET = 0x1A8;
+
+/**
+ * @brief The offset of the flags inside a camera (`uint32_t`, bit 0 = apply the screen ratio).
+ */
+constexpr uintptr_t CAMERA_FLAGS_OFFSET = 0x00;
+
+/**
+ * @brief The offset of the viewport size inside a camera (two `float`, width then height).
+ */
+constexpr uintptr_t CAMERA_VIEWPORT_SIZE_OFFSET = 0x24;
+
+/**
+ * @brief The offset of the viewport position and size fractions inside a camera (four `float`).
+ */
+constexpr uintptr_t CAMERA_VIEWPORT_FRACTIONS_OFFSET = 0x2C;
+
+/**
+ * @brief The offset of the fitted viewport offsets inside a camera (two `int32_t`, X then Y), written by the
+ * viewport fit and added to every 2D position (sprites and text).
+ */
+constexpr uintptr_t CAMERA_FITTED_OFFSETS_OFFSET = 0x3C;
+
+/**
+ * @brief The maximum number of fitted view lines written to the log, so views whose properties keep
+ * changing (e.g. animated) can't flood it.
+ */
+constexpr size_t MAX_FITTED_VIEW_LOG_LINES = 200;
 
 /**
  * @brief The screen format flags the game writes when creating a display data structure.
@@ -179,13 +212,36 @@ constexpr Signature VIEWPORT_FIT_SIGNATURE {
 };
 
 /**
- * @brief The projection matrix builder, hooked right after `tan(FOV / 2)` has been computed into `xmm0`.
+ * @brief The viewport fit, hooked right after the fitted offsets have been stored into the camera
+ * (`mov [r8 + 0x3C], ecx` ... `mov [r8 + 0x40], eax`, `rbx` = display data, `r8` = fitted camera).
  */
-constexpr Signature PROJECTION_MATRIX_SIGNATURE {
-    .name = "Projection matrix",
-    .pattern = "40 53 48 83 EC 40 F3 0F 59 0D ?? ?? ?? ?? 48 8B D9 0F 29 74 24 30 0F 28 F3 0F 29 7C 24 20 "
-               "0F 28 FA 0F 28 C1 E8 ?? ?? ?? ?? 80 BC 24 80 00 00 00 00",
-    .hookOffset = 0x29,
+constexpr Signature FITTED_OFFSETS_SIGNATURE {
+    .name = "Fitted offsets",
+    .pattern = "41 89 48 3C 48 8D 4D B0 F3 0F 10 1D ?? ?? ?? ?? 66 0F 6E C8 0F 5B C9 F3 0F 58 C8 F3 0F 2C C1 "
+               "0F 10 4C 24 40 41 89 40 40 48 8B 05 ?? ?? ?? ??",
+    .hookOffset = 0x28,
+};
+
+/**
+ * @brief The per-frame camera update, hooked right before the display camera FOV is stored
+ * (`movss [rdx + 0x1DC], xmm0`, `xmm0` = gameplay camera FOV * 1.06), drives the 3D world and every copy of the camera.
+ */
+constexpr Signature CAMERA_FOV_SIGNATURE {
+    .name = "Camera FOV",
+    .pattern = "F3 0F 10 83 A0 00 00 00 48 8B 15 ?? ?? ?? ?? F3 0F 59 05 ?? ?? ?? ?? 48 8D 8A D0 01 00 00 "
+               "F3 0F 11 82 DC 01 00 00",
+    .hookOffset = 0x1E,
+};
+
+/**
+ * @brief The temporary FOV swap (save, swap, update, draw, restore), hooked right before the temporary FOV is stored
+ * (`mov [rdx + 0x1DC], eax`, `eax` = the FOV bits), drives the camera-attached 3D HUD objects.
+ */
+constexpr Signature TEMPORARY_FOV_SIGNATURE {
+    .name = "Temporary FOV",
+    .pattern = "48 8B 15 ?? ?? ?? ?? 8B 47 08 F3 0F 10 B2 DC 01 00 00 48 8D 8A D0 01 00 00 89 82 DC 01 00 00 "
+               "FF 52 40",
+    .hookOffset = 0x19,
 };
 
 /**
@@ -197,14 +253,4 @@ constexpr Signature TEXT_PROJECTION_SIGNATURE {
     .pattern = "48 63 83 CC 01 00 00 48 8D 0D ?? ?? ?? ?? F3 0F 10 8B F4 01 00 00 0F 57 D2 F2 0F 5A D0 "
                "F3 0F 10 83 F8 01 00 00 F3 0F 59 CE F3 0F 59 C6 F3 0F 5E CA F3 0F 59 14 81",
     .hookOffset = 0x31,
-};
-
-/**
- * @brief The text origin computation, hooked right before the origin is converted to integers
- * (`xmm0` = origin X, `xmm2` = origin Y, `xmm4` = virtual width, `xmm3` = virtual height, all in pixels).
- */
-constexpr Signature TEXT_ORIGIN_SIGNATURE {
-    .name = "Text origin",
-    .pattern = "F3 0F 59 D3 F3 0F 59 C4 F3 0F 2C C0 66 89 05 ?? ?? ?? ?? 66 89 05 ?? ?? ?? ?? F3 0F 2C C2",
-    .hookOffset = 0x08,
 };

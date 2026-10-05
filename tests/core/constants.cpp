@@ -10,9 +10,10 @@ TEST_CASE("Signatures parse and hook a concrete byte inside the pattern", "[core
         SCREEN_FORMAT_FLAGS_SIGNATURE,
         RENDER_SIZE_SETTER_SIGNATURE,
         VIEWPORT_FIT_SIGNATURE,
-        PROJECTION_MATRIX_SIGNATURE,
+        CAMERA_FOV_SIGNATURE,
+        TEMPORARY_FOV_SIGNATURE,
         TEXT_PROJECTION_SIGNATURE,
-        TEXT_ORIGIN_SIGNATURE,
+        FITTED_OFFSETS_SIGNATURE,
     };
 
     for (const Signature& signature : signatures) {

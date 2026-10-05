@@ -46,15 +46,15 @@ static void initialize(HMODULE asiModule) {
 
     const FixConfig config = configLoad(asiDirectory / CONFIG_FILE_NAME);
 
-    logWrite(std::format(
-        "Config: enabled={} forceRenderSize={} fitInside={} horPlus={} textFix={} textOffset=({}, {})",
+    logWrite(std::format("Config: enabled={} forceRenderSize={} fitInside={} horPlus={} textFix={} "
+                         "centerFittedOffsets={} logFittedViews={}",
         config.isEnabled,
         config.forceRenderSize,
         config.fitInside,
         config.horPlus,
         config.textFix,
-        config.textOffsetX,
-        config.textOffsetY));
+        config.centerFittedOffsets,
+        config.logFittedViews));
 
     if (!config.isEnabled) {
         logWrite("Disabled in the configuration, staying inactive");

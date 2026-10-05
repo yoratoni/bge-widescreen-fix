@@ -1,5 +1,6 @@
 #include "utils/aspect.hpp"
 #include "core/constants.hpp"
+#include <cmath>
 #include <cstdint>
 #include <optional>
 
@@ -26,16 +27,21 @@ std::optional<AspectParams> computeAspectParams(int32_t width, int32_t height) {
     };
 }
 
-TextOffset computeTextOffset(float outputWidth, float outputHeight, float virtualWidth, float virtualHeight) {
+float computeHorPlusFov(float fov, float horPlusScale) {
+    return 2.0f * std::atan(std::tan(fov / 2.0f) * horPlusScale);
+}
+
+FittedOffsetCorrection computeFittedOffsetCorrection(
+    float outputWidth, float outputHeight, float virtualWidth, float virtualHeight) {
     // The virtual screen scaled to the output height gives the width of the centered 16:9 area,
-    // the text layer is drawn from the left edge of the output instead of the left edge of that area
+    // the 2D layers are drawn from the left edge of the output instead of the left edge of that area
     const float scaledVirtualWidth = virtualWidth * outputHeight / virtualHeight;
 
     // The viewport fit letterboxes the virtual screen with the output Y/X ratio,
-    // the text layer is drawn that many pixels too high
+    // the fitted Y offset holds that letterbox
     const float fittedVirtualHeight = virtualWidth * outputHeight / outputWidth;
 
-    return TextOffset {
+    return FittedOffsetCorrection {
         .x = (outputWidth - scaledVirtualWidth) / 2.0f,
         .y = (virtualHeight - fittedVirtualHeight) / 2.0f,
     };

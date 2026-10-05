@@ -26,11 +26,11 @@ struct AspectParams {
 };
 
 /**
- * @brief A pixel offset applied to the origin of the text layer.
+ * @brief The correction applied to the world camera's fitted offsets, in pixels.
  */
-struct TextOffset {
-    float x; // Horizontal offset in pixels, positive moves the text to the right
-    float y; // Vertical offset in pixels, positive moves the text down
+struct FittedOffsetCorrection {
+    float x; // Horizontal correction in pixels, positive moves the 2D layers to the right
+    float y; // Vertical correction in pixels, the letterbox the fit added (removed from the fitted Y offset)
 };
 
 /**
@@ -51,16 +51,26 @@ bool isWiderThan16By9(int32_t width, int32_t height);
 std::optional<AspectParams> computeAspectParams(int32_t width, int32_t height);
 
 /**
- * @brief Computes the offset that moves the text layer back in line with the rest of the 2D layers.
+ * @brief Widens a horizontal field of view for Hor+: the vertical field of view stays the 16:9 one,
+ * only the horizontal one grows (`2 * atan(tan(fov / 2) * horPlusScale)`).
+ * @param fov The horizontal field of view in radians, as set by the game for a 16:9 screen.
+ * @param horPlusScale The Hor+ scale of the output (`AspectParams::horPlusScale`).
+ * @return The widened horizontal field of view in radians.
+ */
+float computeHorPlusFov(float fov, float horPlusScale);
+
+/**
+ * @brief Computes the correction that centers the 16:9 area every 2D layer is drawn in.
  *
- * The text layer is laid out in the game's virtual screen (the 16:9 size the render target had at startup),
- * fitted with the output Y/X ratio (letterboxed vertically) and anchored to the left edge, while every other
- * layer is centered on the output, the X offset re-centers the 16:9 area horizontally and the Y offset
- * removes the letterbox.
+ * The 2D layers (sprites and text) are laid out in the camera viewport, a "virtual screen" sized once at startup
+ * (16:9), and every 2D position gets the world camera's fitted offsets added to it. Fitted with the output Y/X
+ * ratio inside that virtual screen, the offsets end up letterboxed vertically and anchored to the left edge,
+ * the X correction re-centers the 16:9 area horizontally and the Y correction removes the letterbox.
  * @param outputWidth The output width in pixels.
  * @param outputHeight The output height in pixels.
  * @param virtualWidth The virtual screen width in pixels.
  * @param virtualHeight The virtual screen height in pixels.
- * @return The text origin offset in pixels.
+ * @return The fitted offset correction in pixels.
  */
-TextOffset computeTextOffset(float outputWidth, float outputHeight, float virtualWidth, float virtualHeight);
+FittedOffsetCorrection computeFittedOffsetCorrection(
+    float outputWidth, float outputHeight, float virtualWidth, float virtualHeight);
