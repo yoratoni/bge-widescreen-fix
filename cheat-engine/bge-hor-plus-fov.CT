@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="46">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>0</ID>
+      <Description>"[FOV] Hor+ through the world FOV  +AABABE (set HorPlus = 0 in the ASI ini first)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// Right after the viewport fit loads the camera FOV into xmm4 (`movss xmm4, [r8+0C]`):
+// for the world camera (r8 == rbx + 0x1D0), xmm4 = 2 * atan(tan(xmm4 / 2) * ws_fov_k).
+// xmm4 is then stored into the view output ([rdi]) and passed to the matrix builder.
+alloc(ws_fov,128,"bge.exe"+AABABE)
+alloc(ws_fov_data,16,"bge.exe")
+registersymbol(ws_fov_data)
+label(ws_fov_skip)
+label(ws_fov_ret)
+ws_fov_data:
+  dd (float)1.34375
+  dd (float)0.5
+ws_fov:
+  push rdx
+  lea rdx,[rbx+1D0]
+  cmp r8,rdx
+  pop rdx
+  jne ws_fov_skip
+  sub rsp,10
+  movss [rsp],xmm4
+  fld dword ptr [rsp]
+  fmul dword ptr [ws_fov_data+4]
+  fptan
+  fstp st(0)
+  fmul dword ptr [ws_fov_data]
+  fld1
+  fpatan
+  fadd st(0),st(0)
+  fstp dword ptr [rsp]
+  movss xmm4,[rsp]
+  add rsp,10
+ws_fov_skip:
+  sub eax,ecx
+  cdq
+  movd xmm0,ecx
+  jmp ws_fov_ret
+"bge.exe"+AABABE:
+  jmp ws_fov
+  nop 2
+ws_fov_ret:
+[DISABLE]
+"bge.exe"+AABABE:
+  db 2B C1 99 66 0F 6E C1
+dealloc(ws_fov)
+// ws_fov_data kept so the value entry stays valid
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>117</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>1</ID>
+      <Description>"Hor+ factor (0.5625 / (H / W), 1.34375 at 3440x1440)"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>ws_fov_data</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>2</ID>
+      <Description>"[CAM] Hor+ through the camera's own FOV  +9B331D (exclusive with [FOV], set HorPlus = 0 in the ASI ini)"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// The per-frame camera update writes the display camera FOV (`movss [rdx+1DC], xmm0`,
+// gameplay camera FOV * 1.06), widening xmm0 right before that store makes the camera itself Hor+:
+// xmm0 = 2 * atan(tan(xmm0 / 2) * ws_cam_fov_k), every copy of the camera then gets the wide FOV.
+alloc(ws_cam_fov,128,"bge.exe"+9B331D)
+alloc(ws_cam_fov_data,16,"bge.exe")
+registersymbol(ws_cam_fov_data)
+label(ws_cam_fov_ret)
+ws_cam_fov_data:
+  dd (float)1.34375
+  dd (float)0.5
+ws_cam_fov:
+  sub rsp,10
+  movss [rsp],xmm0
+  fld dword ptr [rsp]
+  fmul dword ptr [ws_cam_fov_data+4]
+  fptan
+  fstp st(0)
+  fmul dword ptr [ws_cam_fov_data]
+  fld1
+  fpatan
+  fadd st(0),st(0)
+  fstp dword ptr [rsp]
+  movss xmm0,[rsp]
+  add rsp,10
+  movss [rdx+1DC],xmm0
+  jmp ws_cam_fov_ret
+"bge.exe"+9B331D:
+  jmp ws_cam_fov
+  nop 3
+ws_cam_fov_ret:
+[DISABLE]
+"bge.exe"+9B331D:
+  db F3 0F 11 82 DC 01 00 00
+dealloc(ws_cam_fov)
+// ws_cam_fov_data kept so the value entry stays valid
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>118</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>3</ID>
+      <Description>"[CAM] Hor+ factor (1.34375 at 3440x1440)"</Description>
+      <ShowAsSigned>0</ShowAsSigned>
+      <VariableType>Float</VariableType>
+      <Address>ws_cam_fov_data</Address>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>4</ID>
+      <Description>"[TMP] Hor+ for the temporary FOV (HUD 3D objects?)  +A0C084 (use with [CAM])"</Description>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
+// The temporary FOV swap (save FOV, `mov [rdx+1DC], eax` with an object's own FOV, update + draw, restore)
+// widens eax the same way as [CAM], the restore puts back the already widened per-frame FOV.
+alloc(ws_tmp_fov,128,"bge.exe"+A0C084)
+alloc(ws_tmp_fov_data,16,"bge.exe")
+registersymbol(ws_tmp_fov_data)
+label(ws_tmp_fov_ret)
+ws_tmp_fov_data:
+  dd (float)1.34375
+  dd (float)0.5
+ws_tmp_fov:
+  sub rsp,10
+  mov [rsp],eax
+  fld dword ptr [rsp]
+  fmul dword ptr [ws_tmp_fov_data+4]
+  fptan
+  fstp st(0)
+  fmul dword ptr [ws_tmp_fov_data]
+  fld1
+  fpatan
+  fadd st(0),st(0)
+  fstp dword ptr [rsp]
+  mov eax,[rsp]
+  add rsp,10
+  mov [rdx+1DC],eax
+  jmp ws_tmp_fov_ret
+"bge.exe"+A0C084:
+  jmp ws_tmp_fov
+  nop
+ws_tmp_fov_ret:
+[DISABLE]
+"bge.exe"+A0C084:
+  db 89 82 DC 01 00 00
+dealloc(ws_tmp_fov)
+// ws_tmp_fov_data kept so the value entry stays valid
+</AssemblerScript>
+      <Hotkeys>
+        <Hotkey>
+          <Action>Toggle Activation</Action>
+          <Keys>
+            <Key>119</Key>
+          </Keys>
+          <ID>0</ID>
+        </Hotkey>
+      </Hotkeys>
+    </CheatEntry>
+  </CheatEntries>
+  <UserdefinedSymbols/>
+</CheatTable>
