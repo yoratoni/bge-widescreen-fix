@@ -16,9 +16,10 @@ in Cheat Engine an RVA `0xAAB9CC` is written `"bge.exe"+AAB9CC`, in static tools
 6. [Globals](#globals)
 7. [How the 16:9 lock works](#how-the-169-lock-works)
 8. [Experiment log (Cheat Engine)](#experiment-log-cheat-engine)
-9. [How the mod maps to the findings](#how-the-mod-maps-to-the-findings)
-10. [Open issues](#open-issues)
-11. [Method and tooling](#method-and-tooling)
+9. [Experiment log (ASI)](#experiment-log-asi)
+10. [How the mod maps to the findings](#how-the-mod-maps-to-the-findings)
+11. [Open issues](#open-issues)
+12. [Method and tooling](#method-and-tooling)
 
 ## The build
 | Property        | Value                                                                                                                      |
@@ -73,28 +74,29 @@ Allocated by `GDI_fnpst_CreateDisplayData` (0x598 bytes). **There are several in
 `+99A888`, `+9B3470`, `+99ABFA`, `+999561`), so a Cheat Engine pointer entry built on it lands on a different
 instance from one moment to the next.
 
-| Offset   | Type     | Meaning                                                                                                  |
-|----------|----------|----------------------------------------------------------------------------------------------------------|
-| `+0x1B0` | `uint32` | Screen format flags, initialized to `8`, bit 0 = fit inside, bit 1 = fit outside, bit 2 = reference is Y |
-| `+0x1B4` | `float`  | Pixel Y/X ratio (`1.0`)                                                                                  |
-| `+0x1B8` | `float`  | Custom screen Y/X ratio (`1.0`), used when the ratio constant isn't 1..3                                 |
-| `+0x1CC` | `int32`  | Screen ratio constant (`[Display] ScreenRatio`, default `3` = 16:9), index into the ratio table          |
-| `+0x1D0` | camera   | The embedded camera, **the 3D world camera** (see below), so `+0x1F4`/`+0x1F8` = its width/height        |
+| Offset   | Type       | Meaning                                                                                                  |
+|----------|------------|----------------------------------------------------------------------------------------------------------|
+| `+0x1A8` | `int32` x2 | Size (width, height), written by the renderer (constructor, resize) through `GDI_gpst_CurDD`             |
+| `+0x1B0` | `uint32`   | Screen format flags, initialized to `8`, bit 0 = fit inside, bit 1 = fit outside, bit 2 = reference is Y |
+| `+0x1B4` | `float`    | Pixel Y/X ratio (`1.0`)                                                                                  |
+| `+0x1B8` | `float`    | Custom screen Y/X ratio (`1.0`), used when the ratio constant isn't 1..3                                 |
+| `+0x1CC` | `int32`    | Screen ratio constant (`[Display] ScreenRatio`, default `3` = 16:9), index into the ratio table          |
+| `+0x1D0` | camera     | The embedded camera, **the 3D world camera** (see below), so `+0x1F4`/`+0x1F8` = its width/height        |
 
 ### Camera (`CAM_tdst_Camera`)
 Offsets relative to the camera (add `0x1D0` for the one embedded in the display data):
-| Offset           | Type     | Meaning                                                        |
-|------------------|----------|----------------------------------------------------------------|
-| `+0x00`          | `uint32` | Flags (bit 0 = apply the screen ratio)                         |
-| `+0x04`          | `float`  | Near plane (`1.0`)                                             |
-| `+0x08`          | `float`  | Far plane (`50000.0`)                                          |
-| `+0x0C`          | `float`  | Horizontal field of view in radians (`π/2` default)            |
-| `+0x10`          | `float`  | Y/X ratio of the camera (`1.0`)                                |
-| `+0x14`, `+0x18` | `float`  | Projection factors X / Y (`1 / tan(FOV / 2)` at init)          |
-| `+0x1C`, `+0x20` | `float`  | Viewport center X / Y                                          |
-| `+0x24`, `+0x28` | `float`  | Viewport width / height, **in the virtual screen** (see below) |
-| `+0x2C`..`+0x38` | `float`  | Viewport position / size as fractions                          |
-| `+0x3C`, `+0x40` | `int32`  | Fitted viewport offsets X / Y, written by the viewport fit     |
+| Offset           | Type     | Meaning                                                                                                        |
+|------------------|----------|----------------------------------------------------------------------------------------------------------------|
+| `+0x00`          | `uint32` | Flags (bit 0 = apply the screen ratio)                                                                         |
+| `+0x04`          | `float`  | Near plane (`1.0`)                                                                                             |
+| `+0x08`          | `float`  | Far plane (`50000.0`)                                                                                          |
+| `+0x0C`          | `float`  | Horizontal field of view in radians (`π/2` default)                                                            |
+| `+0x10`          | `float`  | Y/X ratio of the camera (`1.0`)                                                                                |
+| `+0x14`, `+0x18` | `float`  | Projection factors X / Y (`1 / tan(FOV / 2)` at init)                                                          |
+| `+0x1C`, `+0x20` | `float`  | Viewport center X / Y                                                                                          |
+| `+0x24`, `+0x28` | `float`  | Viewport width / height, **the virtual screen**: the 16:9 fit of the display data size, computed by `0xA1D140` |
+| `+0x2C`..`+0x38` | `float`  | Viewport position / size as fractions                                                                          |
+| `+0x3C`, `+0x40` | `int32`  | Fitted viewport offsets X / Y, written by the viewport fit and added to every 2D position (sprites and text)   |
 
 ### Ratio table
 RVA `0x16E5950` (read-only), 4 floats indexed by the screen ratio constant: `{ 1.0, 1.0, 0.75, 0.5625 }`
@@ -103,32 +105,40 @@ RVA `0x16E5950` (read-only), 4 floats indexed by the screen ratio constant: `{ 1
 Changing the table itself fixes the 3D view but breaks every 2D layer, because the HUD and menus read the same entry.
 
 ## Functions
-| RVA        | Name (inferred)                 | Notes                                                                                                                                                                                                                                                                                                              |
-|------------|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `0xA00500` | `GDI_fnpst_CreateDisplayData`   | Reads `ScreenRatio`, writes the flags (`mov [rdi+1B0], 8` at `+A00873`) and initializes the camera                                                                                                                                                                                                                 |
-| `0xAAB980` | Viewport fit                    | `rbx` = display data, `r8` = camera being fitted. Loads the ratio into `xmm6` (`+AAB9CC`), fits a rect of ratio `PixelYoverX * cam.YoverX * ratio` into the camera's width/height according to the flags, writes `+0x3C`/`+0x40`, then calls the matrix builder. The D3D viewport itself is always the full screen |
-| `0xA97FE0` | Projection matrix builder       | `(out, fov, ratio, near, far, ..., refY)`, `t = tanf(fov / 2)` (call to `0x79D270`), then `m00 = 1/t`, `m11 = -1/(t * ratio)` (or `m00 = ratio/t`, `m11 = -1/t` when refY)                                                                                                                                         |
-| `0xA1D140` | Per-view camera setup           | Same fitting logic plus projection factors, used by the HUD's own 3D views (character portraits, item disk)                                                                                                                                                                                                        |
-| `0xA2F250` | Text projection setup           | Computes the display camera's factors (`+0x1E4`/`+0x1E8`) from its width/height and the ratio table (`mulss xmm2, [rcx+rax*4]` at `+A2F2D6`), part of the 2D/text ("STRing") renderer                                                                                                                              |
-| `0xA2F6C2` | String positioning              | Converts string positions to pixels: `y * 4/3 - 1/6` when ratio is 16:9 (4:3 authored layouts), then `(pos + 0.03) / 1.06 * size` (safe frame). Stores the origin at `+A2F7A3` into int16 globals                                                                                                                  |
-| `0xA2F108` | 2D coordinate conversion helper | Three modes (normalized to pixels, pixels to normalized, safe frame), same constants                                                                                                                                                                                                                               |
-| `0x98DA70` | Window/display init             | Runs once (single caller `+98D279`), **clamps the render size to 16:9** (see below)                                                                                                                                                                                                                                |
-| `0xA83EE0` | Display ini reader              | Reads `WindowWidth/Height`, `RenderWidth/Height`, calls the render size setter at `+A84610`                                                                                                                                                                                                                        |
-| `0xA02B30` | Render size setter              | `void(int width, int height)`, writes the render size globals, raises the "size changed" byte, also writes the window size when the global at `+19A0274` is `1`                                                                                                                                                    |
-| `0xAA0D70` | Present path                    | Compares render and window aspect ratios (threshold `1e-5`)                                                                                                                                                                                                                                                        |
+| RVA          | Name (inferred)                                                             | Notes                                                                                                                                                                                                                                                                                                              |
+|--------------|-----------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `0xA00500`   | `GDI_fnpst_CreateDisplayData`                                               | Reads `ScreenRatio`, writes the flags (`mov [rdi+1B0], 8` at `+A00873`) and initializes the camera                                                                                                                                                                                                                 |
+| `0xAAB980`   | Viewport fit                                                                | `rbx` = display data, `r8` = camera being fitted. Loads the ratio into `xmm6` (`+AAB9CC`), fits a rect of ratio `PixelYoverX * cam.YoverX * ratio` into the camera's width/height according to the flags, writes `+0x3C`/`+0x40`, then calls the matrix builder. The D3D viewport itself is always the full screen |
+| `0xA97FE0`   | Projection matrix builder                                                   | `(out, fov, ratio, near, far, ..., refY)`, `t = tanf(fov / 2)` (call to `0x79D270`), then `m00 = 1/t`, `m11 = -1/(t * ratio)` (or `m00 = ratio/t`, `m11 = -1/t` when refY)                                                                                                                                         |
+| `0xA1D140`   | Per-view camera setup                                                       | Same fitting logic plus projection factors, used by the HUD's own 3D views (character portraits, item disk)                                                                                                                                                                                                        |
+| `0xA2F250`   | Text projection setup                                                       | Computes the display camera's factors (`+0x1E4`/`+0x1E8`) from its width/height and the ratio table (`mulss xmm2, [rcx+rax*4]` at `+A2F2D6`), part of the 2D/text ("STRing") renderer                                                                                                                              |
+| `0xA2F6C2`   | String positioning                                                          | Converts string positions to pixels: `y * 4/3 - 1/6` when ratio is 16:9 (4:3 authored layouts), then `(pos + 0.03) / 1.06 * size` (safe frame). Stores the origin at `+A2F7A3` into int16 globals                                                                                                                  |
+| `0xA2F108`   | 2D coordinate conversion helper                                             | Three modes (normalized to pixels, pixels to normalized, safe frame), same constants                                                                                                                                                                                                                               |
+| `0xA2EA57`.. | 2D sprite projection (cluster of near-identical functions up to `0xA2F0B3`) | `camX = (x + fittedOffsetX - centerX) / FactorX`, `camY = (centerY - (y + fittedOffsetY)) / FactorY`, with the display data's camera (`+0x1EC`/`+0x1F0` center, `+0x1E4`/`+0x1E8` factors, `+0x20C`/`+0x210` fitted offsets)                                                                                       |
+| `0x98DA70`   | Window/display init                                                         | Runs once (single caller `+98D279`), starts from a hard-coded 1920x1080, then either takes the native screen size without any clamp (platform 1, Amazon Luna, branch at `+98DC36`) or reads `[Display] WindowWidth/Height` and **clamps the render size to 16:9** (see below)                                      |
+| `0xAA03A0`   | Renderer constructor                                                        | Copies the render size globals into the renderer (`+0x50`/`+0x54`) and into the **current** display data size (`+0x1A8`/`+0x1AC`)                                                                                                                                                                                  |
+| `0xA9F820`   | Renderer resize                                                             | Same as the constructor on a size change, so only the current display data gets the new size                                                                                                                                                                                                                       |
+| `0x9B32E0`   | Per-frame camera update                                                     | Display camera FOV = gameplay camera FOV (`[rbx + 0xA0]`) * 1.06, stored at `+9B331D`, then a few more fields and the camera's update method                                                                                                                                                                       |
+| `0xA0BE26`   | Temporary FOV draw (script command)                                         | Saves the display camera FOV (`+A0C075`), stores an object's own FOV (`+A0C084`), updates the camera, draws, restores the saved FOV (`+A0C0AC`), used by the camera-attached HUD objects                                                                                                                           |
+| `0x9B1AF2`   | Level of detail                                                             | Projected size of an object (`factorX² * size² / distance²`)                                                                                                                                                                                                                                                       |
+| `0x999040`   | Main loop, resize detector                                                  | Compares the display camera width/height (`+0x1F4`/`+0x1F8`) with cached copies every frame and calls two resize handlers (`0x999950`, `0x99A340`) when they change                                                                                                                                                |
+| `0xA83EE0`   | Display ini reader                                                          | Reads `WindowWidth/Height`, `RenderWidth/Height`, calls the render size setter at `+A84610`                                                                                                                                                                                                                        |
+| `0xA02B30`   | Render size setter                                                          | `void(int width, int height)`, writes the render size globals, raises the "size changed" byte, also writes the window size when the global at `+19A0274` is `1`                                                                                                                                                    |
+| `0xAA0D70`   | Present path                                                                | Compares render and window aspect ratios (threshold `1e-5`)                                                                                                                                                                                                                                                        |
 
 The float literal pool (sorted) starts around RVA `0x173C980`, `16/9` is at `0x173CA2C` and is used by
 ~28 AI2C script functions (HUD layout in script space, `x * 16 / 9`).
 
 ## Globals
-| RVA                      | Type    | Meaning                                          |
-|--------------------------|---------|--------------------------------------------------|
-| `0x19597FC`, `0x1959800` | `int32` | Render width / height (the render target)        |
-| `0x1959804`, `0x1959808` | `int32` | Window width / height (the actual output)        |
-| `0x21373C1`              | `uint8` | "Render size changed" flag, raised by the setter |
-| `0x19AFE18`              | pointer | `GDI_gpst_CurDD`, the current display data       |
-| `0x19B0020`, `0x19B0638` | `int16` | Current string origin X                          |
-| `0x19AFE04`, `0x19AFDE4` | `int16` | Current string origin Y                          |
+| RVA                      | Type    | Meaning                                                                                   |
+|--------------------------|---------|-------------------------------------------------------------------------------------------|
+| `0x19597FC`, `0x1959800` | `int32` | Render width / height (the render target)                                                 |
+| `0x1959804`, `0x1959808` | `int32` | Window width / height (the actual output)                                                 |
+| `0x21373C1`              | `uint8` | "Render size changed" flag, raised by the setter                                          |
+| `0x19AFE18`              | pointer | `GDI_gpst_CurDD`, the current display data                                                |
+| `0x19A0274`              | `int32` | Distribution platform, 0 = PC, 1 = Amazon Luna, 2 = GeForce NOW (from the application ID) |
+| `0x19B0020`, `0x19B0638` | `int16` | Current string origin X                                                                   |
+| `0x19AFE04`, `0x19AFDE4` | `int16` | Current string origin Y                                                                   |
 
 Other writers of the render size: `+98D3EF` (from the monitor's mode list), `+9B9857` and `+A849F7` (setter clones),
 `+14AC943` (resolution change, with a `SetWindowPos`), `+14AD854` (800x600 fallback).
@@ -140,13 +150,19 @@ There are three separate layers, each one had to be handled:
    if wider, `width = height / 0.5625` (3440 becomes 2560), if taller, `height = width * 0.5625`.
    The present step then pillarboxes that 16:9 target inside the window. The branch is the `jae` at `+98DF97`
    (`73 23`, `EB 23` disables the clamp), pattern `0F 2F F0 73 23 0F 2F E6 76 0A F3 0F 59 CB`, unique.
-2. **Virtual screen**: every camera's width/height (and so every viewport fit) is expressed in a virtual screen equal
-   to the **startup** render size (2560x1440 here), changing the render size later doesn't update it. With the
-   output ratio, a 2560-wide virtual screen fits a 2560x1071 viewport letterboxed at y = 184, which is exactly the
-   offset the text layer ended up with.
+2. **Virtual screen**: every camera's viewport size (`+0x24`/`+0x28`, so every viewport fit) is computed by the
+   per-view camera setup (`0xA1D140`, written at `+A1D264`) as the fit of the display data size with the stock 16:9
+   ratio (its ratio table read at `+A1D195` is never overridden), so a 3440x1440 display data still gives a
+   2560x1440 viewport: a 16:9 virtual screen. With the output ratio, a 2560-wide virtual screen fits a 2560x1071 viewport letterboxed at
+   y = 184, and the fitted offsets (x = 0, y = 184) are added to every 2D position: the whole 2D layer (sprites and
+   text) ends up anchored to the left edge and letterboxed. Fades and loading screens showed it as a 2560x1440 box
+   at x = 0, 184 px too low.
 3. **Ratio and FOV**: the ratio table entry (`0.5625`) drives both the viewport fit and the projection. Jade keeps the
    **horizontal** FOV fixed, so a wider ratio alone gives Vert- (top and bottom cropped), which pushed the
-   camera-attached HUD (portraits, health bars) off the top of the screen.
+   camera-attached HUD (portraits, health bars) off the top of the screen. Hor+ has to widen the FOV **where it is
+   written into the display camera** (`+0x1DC`), there are two writers: the per-frame camera update (3D world) and a
+   temporary FOV swap (camera-attached HUD objects). Widening only the projection matrix (hook H) also gives Hor+,
+   but systems reading the camera FOV themselves (the water surface) keep the narrow one.
 
 ## Experiment log (Cheat Engine)
 The table is `cheat-engine/bge-widescreen-table.CT`, the hooks below are its script entries
@@ -170,38 +186,55 @@ The table is `cheat-engine/bge-widescreen-table.CT`, the hooks below are its scr
 
 **Final recipe** (3440x1440, game started at 2560x1440): render 3440x1440 + size changed flag, flags = 9,
 A4 (ratio for every view + flag the world camera), H (Hor+ for the world camera), B2 (text size), T (text origin).
+T was later replaced by the fitted offsets correction (see the next section).
+
+## Experiment log (ASI)
+Runs of the mod itself, using its `[Experimental]` and `[Debug]` toggles (most of them removed once concluded):
+| #  | Test                                                                                                 | Result                                                                                                   | Conclusion                                                                                                   |
+|----|------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| 15 | `NativeStartupResolution`: `nop` the platform branch at `+98DC36` (Luna path)                        | Log: no render size correction needed, nothing visible changes                                           | The game starts at the native size, but the startup render size isn't what the 2D layer depends on (removed) |
+| 16 | `WindowWidth_PC=3440` in `BGE.player.ini`                                                            | Nothing changes                                                                                          | Not the source of the virtual screen                                                                         |
+| 17 | `LogDisplayData`: every display data seen by the viewport fit, with its size                         | A single display data, resized from 2560x1440 to 3440x1440 by the render size sync                       | The display data size isn't stale                                                                            |
+| 18 | `LogFittedViews`: every distinct view (camera flags, ratio index, viewport size and fractions)       | Only the world camera and one stack camera (flags `0x401`), both ratio index 3, viewport stays 2560x1440 | The stale virtual screen is the camera viewport size                                                         |
+| 19 | `CenterFittedOffsets`: after the fit, fitted offsets `x += 440`, `y -= 184` for the world camera     | Fades and loading screens centered, 3D unaffected, text off by (+440, -184)                              | The 3D doesn't use the fitted offsets, the text does: T was a double correction (removed)                    |
+| 20 | CE `bge-hor-plus-fov.CT` F6: widen the world FOV loaded by the viewport fit (`+AABABE`) instead of H | 3D identical to H, water surface still missing on both sides                                             | The water doesn't read the fit's stored FOV                                                                  |
+| 21 | CE F7: widen the FOV written by the per-frame camera update (`+9B331D`)                              | Water reaches the screen edges, camera-attached HUD goes off the top again                               | The water reads the camera itself, the HUD objects get their FOV elsewhere                                   |
+| 22 | CE F8: also widen the temporary FOV (`+A0C084`)                                                      | Everything correct, F7 drives the 3D world, F8 the HUD 3D layer, independently                           | Hor+ = widen every FOV written to the display camera, replaces H in the ASI                                  |
 
 ## How the mod maps to the findings
-| Mod piece                                                                                                        | Finding                                                                        | CE equivalent                |
-|------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|------------------------------|
-| `SCREEN_FORMAT_FLAGS_SIGNATURE`: immediate `8` to `9` at `+A00879`                                               | Fit inside for every display data                                              | Shift+F9 (one instance only) |
-| `RENDER_SIZE_SETTER_SIGNATURE`: the call at `+A84610`, its target `0xA02B30`, its first operand the size globals | Render target = window size, through the game's own setter                     | F9 + F11                     |
-| `VIEWPORT_FIT_SIGNATURE`: mid hook at `+AAB9DB` (after the ratio load)                                           | `xmm6 = H / W` when `rdx == 3`, flag the world camera when `r8 == rbx + 0x1D0` | A4                           |
-| `PROJECTION_MATRIX_SIGNATURE`: mid hook at `+A98009` (after `tanf`)                                              | `xmm0 *= 0.5625 / (H / W)` for the flagged world camera                        | H                            |
-| `TEXT_PROJECTION_SIGNATURE`: mid hook at `+A2F2D6`                                                               | `xmm1 *= 0.5625 / (H / W)`, `xmm2 *= (H / W) / 0.5625`                         | B2                           |
-| `TEXT_ORIGIN_SIGNATURE`: mid hook at `+A2F7A3`                                                                   | `xmm0 += dx`, `xmm2 += dy`, virtual size from `xmm4` / `xmm3`                  | T                            |
+| Mod piece                                                                                                        | Finding                                                                                                                                                  | CE equivalent                |
+|------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|
+| `SCREEN_FORMAT_FLAGS_SIGNATURE`: immediate `8` to `9` at `+A00879`                                               | Fit inside for every display data                                                                                                                        | Shift+F9 (one instance only) |
+| `RENDER_SIZE_SETTER_SIGNATURE`: the call at `+A84610`, its target `0xA02B30`, its first operand the size globals | Render target = window size, through the game's own setter                                                                                               | F9 + F11                     |
+| `VIEWPORT_FIT_SIGNATURE`: mid hook at `+AAB9DB` (after the ratio load)                                           | `xmm6 = H / W` when `rdx == 3`, flag the world camera when `r8 == rbx + 0x1D0`                                                                           | A4                           |
+| `CAMERA_FOV_SIGNATURE`: mid hook at `+9B331D` (before the per-frame FOV store)                                   | `xmm0 = 2 * atan(tan(xmm0 / 2) * 0.5625 / (H / W))`                                                                                                      | F7 (replaces H)              |
+| `TEMPORARY_FOV_SIGNATURE`: mid hook at `+A0C084` (before the temporary FOV store)                                | Same on the bits of `eax`                                                                                                                                | F8                           |
+| `TEXT_PROJECTION_SIGNATURE`: mid hook at `+A2F2D6`                                                               | `xmm1 *= 0.5625 / (H / W)`, `xmm2 *= (H / W) / 0.5625`                                                                                                   | B2                           |
+| `FITTED_OFFSETS_SIGNATURE`: mid hook at `+AABB30` (after the fitted offsets are stored)                          | World camera only: fitted offsets `x += (W - virtualW) / 2`, `y -= (virtualH - virtualW * H / W) / 2` (440 / 184 at 3440x1440), centering every 2D layer | Replaces T                   |
 
-The startup clamp (`+98DF97`) is **not** patched yet, v1 reproduces the CE recipe exactly (16:9 virtual screen).
+The startup clamp (`+98DF97`) isn't patched: the 2D layer depends on the camera viewports, not on the startup render size.
 
 **First in-game run (v0.1.0, 2026-10-03)**: every signature found at the expected address, all hooks installed,
 the log reported `Render size 1920x1080 -> 3440x1440`. The game started at **1920x1080** (not the 2560x1440 of the
 player ini), so the virtual screen was 1920x1080, and the text was still aligned: the text offset formula holds for a
 virtual screen of a different height than the output, as long as it is 16:9. 3D view, Hor+, portraits, main menu,
-pause menu and gameplay text all correct.
+pause menu and gameplay text all correct. (Later runs showed the virtual screen is the camera viewport size, see
+"How the 16:9 lock works".)
 
 ## Open issues
-- **Loading / black screens** are drawn 16:9 in the bottom-left corner of the 3440x1440 output (the game is visible
-  behind). They match the **startup** render size (1920x1080 in the first in-game run), they run on their own thread
-  (`"Loading Screen Thread"` string) and most likely keep the size captured at startup. Patching the startup clamp
-  would likely fix it, but it also changes the virtual screen and therefore the text offsets.
-- **Map menu**: a hover effect is drawn over the side bars, i.e. outside the 16:9 area the rest of the menu uses.
+- **Black side bars for 2D-only screens**: loading screens, fades and menus are now centered in the 16:9 area, but
+  whatever is behind them (the game, the previous screen) stays visible on the sides. The map menu also parks its
+  inactive button states just outside the 16:9 frame, which are now visible on the sides. Drawing black (or clipping)
+  outside the 16:9 area on those screens would fix both, the hard part is detecting when a screen is 2D-only.
 - **Pause menu side bars** with Hor+: accepted, the menu art is a 16:9 asset.
 - **Cutscenes**: not tested, Bink movies are pre-rendered 16:9 (pillarboxing expected and fine), in-engine cutscenes unknown.
 - **Supported setups**: only outputs wider than 16:9 are touched, 16:10 and narrower keep the stock behaviour.
   The text offsets were validated with 16:9 virtual screens (2560x1440 in Cheat Engine, 1920x1080 in game),
   a game started at a non-16:9 resolution is untested.
-- **Where the startup 1920x1080 comes from**: not identified yet, the player ini says 2560x1440, the most likely
-  source is the in-game resolution option (applied through the monitor mode list writer at `+98D3EF`).
+- **Where the startup render size comes from**: 1920x1080 is the window initialization's hard-coded default when
+  `[Display] WindowWidth/Height` isn't found, later runs started at 2560x1440 instead (probably the in-game resolution
+  option, applied through the monitor mode list writer at `+98D3EF`). It doesn't matter anymore: the correction is
+  computed from the actual camera viewport size.
 - **Game updates**: every signature must match exactly once, otherwise the mod patches nothing and logs which one failed.
 
 ## Method and tooling
