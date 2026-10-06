@@ -76,7 +76,7 @@ jobs:
         shell: pwsh
         run: |
           $zipName = "BGEWidescreenFix-${{ steps.version.outputs.value }}.zip"
-          New-Item -ItemType Directory -Force dist, ual | Out-Null
+          New-Item -ItemType Directory -Force dist, dist/licenses, ual | Out-Null
 
           Invoke-WebRequest -Uri "https://github.com/ThirteenAG/Ultimate-ASI-Loader/releases/download/$env:UAL_VERSION/Ultimate-ASI-Loader-NoPDB_x64.zip" -OutFile ual/ual.zip
           $hash = (Get-FileHash ual/ual.zip -Algorithm SHA256).Hash.ToLower()
@@ -84,10 +84,16 @@ jobs:
               throw "Ultimate ASI Loader checksum mismatch: $hash"
           }
           Expand-Archive ual/ual.zip -DestinationPath ual
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/$env:UAL_VERSION/license" -OutFile dist/LICENSE-UltimateASILoader.txt
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/$env:UAL_VERSION/license" -OutFile dist/licenses/UltimateASILoader.txt
 
           Copy-Item build-release/BGEWidescreenFix.asi, build-release/BGEWidescreenFix.ini, ual/dinput8.dll dist/
-          Copy-Item LICENSE dist/LICENSE-BGEWidescreenFix.txt
+          Copy-Item LICENSE dist/licenses/BGEWidescreenFix.txt
+
+          # Libraries compiled into the ASI: Zydis and Zycore (MIT, notice required with binaries)
+          # and SafetyHook (Boost 1.0, not required for binaries, included for completeness)
+          Copy-Item build-release/_deps/zydis-src/LICENSE dist/licenses/Zydis.txt
+          Copy-Item build-release/_deps/zydis-src/dependencies/zycore/LICENSE dist/licenses/Zycore.txt
+          Copy-Item build-release/_deps/safetyhook-src/LICENSE dist/licenses/SafetyHook.txt
 
           Compress-Archive -Path dist/* -DestinationPath $zipName
           "ZIP_NAME=$zipName" >> $env:GITHUB_ENV

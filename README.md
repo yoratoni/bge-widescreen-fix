@@ -23,13 +23,12 @@ Tested at 3440x1440 (21:9), other ultrawide resolutions use the same maths but h
 4. Launch the game normally.
 
 The ZIP contains:
-| File                            | Role                                                                                                         |
-|---------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `BGEWidescreenFix.asi`          | The fix itself                                                                                               |
-| `BGEWidescreenFix.ini`          | Its configuration (optional, every setting has a default)                                                    |
-| `dinput8.dll`                   | [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader), loads the fix when the game starts |
-| `LICENSE-BGEWidescreenFix.txt`  | License of the fix                                                                                           |
-| `LICENSE-UltimateASILoader.txt` | License of Ultimate ASI Loader                                                                               |
+| File                   | Role                                                                                                         |
+|------------------------|--------------------------------------------------------------------------------------------------------------|
+| `BGEWidescreenFix.asi` | The fix itself                                                                                               |
+| `BGEWidescreenFix.ini` | Its configuration (optional, every setting has a default)                                                    |
+| `dinput8.dll`          | [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader), loads the fix when the game starts |
+| `licenses/`            | The licenses of the fix and of every component it includes (Ultimate ASI Loader, SafetyHook, Zydis, Zycore)  |
 
 There's no in-game setting to change, the fix adapts to the size of the game window (your monitor's resolution in
 fullscreen).
