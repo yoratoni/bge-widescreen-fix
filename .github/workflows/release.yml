@@ -1,7 +1,7 @@
 name: Release
 
 # Builds the ASI in Release, runs the tests and packages a ready-to-extract ZIP
-# (ASI, configuration, Ultimate ASI Loader as dinput8.dll and the licenses).
+# (ASI, configuration, Ultimate ASI Loader as dinput8.dll, a plain text README and the licenses).
 # A pushed "v*" tag also publishes the ZIP as a GitHub release, a manual run only uploads it as an artifact.
 on:
   push:
@@ -86,7 +86,7 @@ jobs:
           Expand-Archive ual/ual.zip -DestinationPath ual
           Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/$env:UAL_VERSION/license" -OutFile dist/licenses/UltimateASILoader.txt
 
-          Copy-Item build-release/BGEWidescreenFix.asi, build-release/BGEWidescreenFix.ini, ual/dinput8.dll dist/
+          Copy-Item build-release/BGEWidescreenFix.asi, build-release/BGEWidescreenFix.ini, ual/dinput8.dll, package/README.txt dist/
           Copy-Item LICENSE dist/licenses/BGEWidescreenFix.txt
 
           # Libraries compiled into the ASI: Zydis and Zycore (MIT, notice required with binaries)

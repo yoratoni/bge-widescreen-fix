@@ -28,6 +28,7 @@ The ZIP contains:
 | `BGEWidescreenFix.asi` | The fix itself                                                                                               |
 | `BGEWidescreenFix.ini` | Its configuration (optional, every setting has a default)                                                    |
 | `dinput8.dll`          | [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader), loads the fix when the game starts |
+| `README.txt`           | These instructions in plain text, not needed by the game                                                     |
 | `licenses/`            | The licenses of the fix and of every component it includes (Ultimate ASI Loader, SafetyHook, Zydis, Zycore)  |
 
 There's no in-game setting to change, the fix adapts to the size of the game window (your monitor's resolution in
@@ -58,8 +59,9 @@ Every setting lives in `BGEWidescreenFix.ini`, next to the game executable, a mi
 | `[Debug]`   | `LogFittedViews`      | `0`     | Logs every view the game fits to the screen, for development only                  |
 
 ## Uninstallation
-Delete `BGEWidescreenFix.asi`, `BGEWidescreenFix.ini` and `BGEWidescreenFix.log` from the game folder. Delete
-`dinput8.dll` too, unless another mod in that folder also relies on Ultimate ASI Loader.
+Delete `BGEWidescreenFix.asi`, `BGEWidescreenFix.ini`, `BGEWidescreenFix.log`, `README.txt` and the `licenses`
+folder from the game folder. Delete `dinput8.dll` too, unless another mod in that folder also relies on Ultimate ASI
+Loader.
 
 ## Troubleshooting
 The fix writes `BGEWidescreenFix.log` next to the game executable every time the game starts:
