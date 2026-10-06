@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # The only place the version is defined, passed to the code as "FIX_VERSION_STRING" (see "FIX_VERSION"
 # in "src/core/constants.hpp") and checked against the tag by the release workflow
-project(BGEWidescreenFix VERSION 0.1.1 LANGUAGES CXX)
+project(BGEWidescreenFix VERSION 0.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
